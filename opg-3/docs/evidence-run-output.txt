@@ -1,0 +1,327 @@
+CREATE FUNCTION
+CREATE TABLE
+CREATE FUNCTION
+CREATE TRIGGER
+CREATE MATERIALIZED VIEW
+CREATE INDEX
+SET
+=== BASELINE ===
+-- 1) direkte forespørgsel --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           36.00 |                 1
+(2 rows)
+
+-- 2) funktion --
+ operator_id | captured_amount | captured_payments 
+-------------+-----------------+-------------------
+ OP-METRO    |           36.00 |                 1
+ OP-BUS      |           36.00 |                 1
+(2 rows)
+
+-- 3) materialiseret view: tom/upopuleret indtil første refresh --
+DO
+psql:/tmp/run_all_cases.sql:38: NOTICE:  controlled expected error: materialized view "daily_captured_revenue" has not been populated
+REFRESH MATERIALIZED VIEW
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           36.00 |                 1
+(2 rows)
+
+-- 4) trigger-tabel: tom ved oprettelse, INGEN backfill sker automatisk --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+(0 rows)
+
+=== REBUILD PATH: manuel backfill af daily_revenue_by_operator fra autoriteten ===
+TRUNCATE TABLE
+INSERT 0 2
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           36.00 |                 1
+(2 rows)
+
+=== CASE 1: captured payment insert ===
+INSERT 0 1
+-- 1) direkte forespørgsel --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           72.00 |                 2
+(2 rows)
+
+-- 2) funktion --
+ operator_id | captured_amount | captured_payments 
+-------------+-----------------+-------------------
+ OP-METRO    |           72.00 |                 2
+ OP-BUS      |           36.00 |                 1
+(2 rows)
+
+-- 3a) materialiseret view før refresh (stale) --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           36.00 |                 1
+(2 rows)
+
+-- 4) trigger-tabel --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           72.00 |                 2
+(2 rows)
+
+-- 3b) materialiseret view efter refresh --
+REFRESH MATERIALIZED VIEW
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           72.00 |                 2
+(2 rows)
+
+=== CASE 2: failed payment insert ===
+INSERT 0 1
+-- 1) direkte forespørgsel --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           72.00 |                 2
+(2 rows)
+
+-- 2) funktion --
+ operator_id | captured_amount | captured_payments 
+-------------+-----------------+-------------------
+ OP-METRO    |           72.00 |                 2
+ OP-BUS      |           36.00 |                 1
+(2 rows)
+
+-- 3a) materialiseret view før refresh --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           72.00 |                 2
+(2 rows)
+
+-- 4) trigger-tabel --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           72.00 |                 2
+(2 rows)
+
+-- 3b) materialiseret view efter refresh --
+REFRESH MATERIALIZED VIEW
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           72.00 |                 2
+(2 rows)
+
+=== CASE 3: status correction Failed -> Captured ===
+UPDATE 1
+-- 1) direkte forespørgsel --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |          122.00 |                 3
+(2 rows)
+
+-- 2) funktion --
+ operator_id | captured_amount | captured_payments 
+-------------+-----------------+-------------------
+ OP-METRO    |          122.00 |                 3
+ OP-BUS      |           36.00 |                 1
+(2 rows)
+
+-- 3a) materialiseret view før refresh (stale) --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           72.00 |                 2
+(2 rows)
+
+-- 4) trigger-tabel --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           72.00 |                 2
+(2 rows)
+
+-- 3b) materialiseret view efter refresh --
+REFRESH MATERIALIZED VIEW
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |          122.00 |                 3
+(2 rows)
+
+=== CASE 4: status correction Captured -> Refunded ===
+UPDATE 1
+-- 1) direkte forespørgsel --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           86.00 |                 2
+(2 rows)
+
+-- 2) funktion --
+ operator_id | captured_amount | captured_payments 
+-------------+-----------------+-------------------
+ OP-METRO    |           86.00 |                 2
+ OP-BUS      |           36.00 |                 1
+(2 rows)
+
+-- 3a) materialiseret view før refresh (stale) --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |          122.00 |                 3
+(2 rows)
+
+-- 4) trigger-tabel --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           72.00 |                 2
+(2 rows)
+
+-- 3b) materialiseret view efter refresh --
+REFRESH MATERIALIZED VIEW
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           86.00 |                 2
+(2 rows)
+
+=== CASE 5: deletion of test data ===
+DELETE 1
+-- 1) direkte forespørgsel --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           36.00 |                 1
+(2 rows)
+
+-- 2) funktion --
+ operator_id | captured_amount | captured_payments 
+-------------+-----------------+-------------------
+ OP-METRO    |           36.00 |                 1
+ OP-BUS      |           36.00 |                 1
+(2 rows)
+
+-- 3a) materialiseret view før refresh (stale) --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           86.00 |                 2
+(2 rows)
+
+-- 4) trigger-tabel --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           72.00 |                 2
+(2 rows)
+
+-- 3b) materialiseret view efter refresh --
+REFRESH MATERIALIZED VIEW
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           36.00 |                 1
+(2 rows)
+
+=== CASE 6: duplicate delivery of the same external payment reference ===
+INSERT 0 1
+ external_payment_reference | count 
+----------------------------+-------
+ gateway-capture-0001       |     2
+(1 row)
+
+-- 1) direkte forespørgsel --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           72.00 |                 2
+(2 rows)
+
+-- 2) funktion --
+ operator_id | captured_amount | captured_payments 
+-------------+-----------------+-------------------
+ OP-METRO    |           72.00 |                 2
+ OP-BUS      |           36.00 |                 1
+(2 rows)
+
+-- 3a) materialiseret view før refresh (stale) --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           36.00 |                 1
+(2 rows)
+
+-- 4) trigger-tabel --
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |          108.00 |                 3
+(2 rows)
+
+-- 3b) materialiseret view efter refresh --
+REFRESH MATERIALIZED VIEW
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           72.00 |                 2
+(2 rows)
+
+=== SIDE-EFFECT TRACE: EXPLAIN ANALYZE on one INSERT INTO payments ===
+                                           QUERY PLAN                                           
+------------------------------------------------------------------------------------------------
+ Insert on payments  (cost=0.00..0.01 rows=0 width=0) (actual time=0.044..0.044 rows=0 loops=1)
+   ->  Result  (cost=0.00..0.01 rows=1 width=232) (actual time=0.002..0.002 rows=1 loops=1)
+ Planning Time: 0.030 ms
+ Trigger payments_daily_revenue_after_insert: time=0.644 calls=1
+ Execution Time: 0.710 ms
+(5 rows)
+
+=== ROLLBACK CHECK: trigger writes share the inserting transaction ===
+BEGIN
+INSERT 0 1
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |         1143.00 |                 5
+(2 rows)
+
+ROLLBACK
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |          144.00 |                 4
+(2 rows)
+
+ count 
+-------
+     0
+(1 row)
+
+DELETE 1
+=== FINAL REBUILD: restore daily_revenue_by_operator from the authority ===
+TRUNCATE TABLE
+INSERT 0 2
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           72.00 |                 2
+(2 rows)
+
+REFRESH MATERIALIZED VIEW
+ operator_id | revenue_date | captured_amount | captured_payments 
+-------------+--------------+-----------------+-------------------
+ OP-BUS      | 2026-04-29   |           36.00 |                 1
+ OP-METRO    | 2026-04-29   |           72.00 |                 2
+(2 rows)
+
