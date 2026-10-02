@@ -1,0 +1,28 @@
+-- Query 1: upcoming trips
+select
+    t.id,
+    t.scheduled_departure_utc,
+    t.status
+from trips t
+where t.route_id = :route_id
+  and t.scheduled_departure_utc >= :after_utc
+order by t.scheduled_departure_utc
+limit 20;
+
+-- Query 2: ordered route stops
+SELECT
+    rs.route_id, rs.stop_id,
+    city_id, name
+FROM route_stops rs 
+    INNER JOIN stops s on s.id = rs.stop_id
+WHERE rs.route_id = :route_id
+ORDER BY rs.stop_sequence;
+
+-- Query 3: routes and trip count, including routes with zero trips
+SELECT
+    r.id, r.short_name, r.mode,
+    COUNT(t.id) AS scheduled_trip_count
+FROM routes r
+    LEFT JOIN trips t on t.route_id = r.id AND t.service_date = :service_date
+GROUP BY r.id, r.short_name, r.mode
+ORDER BY r.id;
