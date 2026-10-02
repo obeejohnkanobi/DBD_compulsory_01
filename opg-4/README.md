@@ -4,6 +4,7 @@ Give products stable IDs without breaking existing tickets or the application co
 
 You need Docker Desktop with Compose. Start the database from this directory:
 
+## Start the database
 ```bash
 docker compose up -d
 docker compose ps

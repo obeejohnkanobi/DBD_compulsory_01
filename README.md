@@ -2,6 +2,8 @@
 
 ## Setup and reset instructions:
 - Lecture 1: [Start the database](Lecture-1/README.md#start-the-database)
+- Lecture 3: [Run the evidence script](opg-3/README.md#Start-the-database)
+- Lecture 4: [Apply a migration](opg-4/README.md#Start-the-database)
 
 ## Where to find the work
 - Lecture 1: model, workload map and queries: [Lecture-1](Lecture-1/)
