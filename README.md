@@ -12,9 +12,20 @@
 - Lecture 4: migration stages and verification: [Lecture-4](opg-4/)
 
 ## Two decisions worth discussing
-For each: What did we choose? What was the alternative?
-Why does our choice fit MobilityTicketing? Which file or result supports it?
+[ToDO]For each: What did we choose? What was the alternative?
+[Casper]
+lecture 1: [ToDO] **Beskriv** Why does our choice fit MobilityTicketing? Which file or result supports it?
+[Johan]
+lecture 2: [ToDO] **Beskriv** Why does our choice fit MobilityTicketing? Which file or result supports it?
+[John]
+lecture 3: [ToDO] **Beskriv** Why does our choice fit MobilityTicketing? Which file or result supports it?
+[John]
+lecture 4: [ToDO] **Beskriv** Why does our choice fit MobilityTicketing? Which file or result supports it?
 
 ## One limitation or open question
-What does our implementation not guarantee, or what are we still unsure about?
-Point to the relevant evidence. State what we would check next.
+[ToDO] What does our implementation not guarantee, or what are we still unsure about?
+
+[ToDO] Point to the relevant evidence. 
+[ToDo] State what we would check next.
+
+## Vi skriver på dansk. Med undtagelse fagbegreber på engelsk.
